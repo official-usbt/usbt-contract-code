@@ -87,6 +87,7 @@ contract USBT is IStableToken {
                             AMM / SELL CONTROL
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) public isAMM;
+    // Exempts from the sell fee only; the global max-sell limit still applies (except for the owner)
     mapping(address => bool) public isSellLockExempt;
 
     // Max sell amount to AMM in token smallest units
@@ -358,19 +359,19 @@ contract USBT is IStableToken {
     if (from == address(0) || to == address(0)) revert ZeroAddress();
     if (value == 0) revert AmountZero();
 
-    bool isSellToAMM = isAMM[to] && !isSellLockExempt[from];
+    bool isSellToAMM = isAMM[to];
 
     uint256 fee = 0;
 
-    if (sellFeeEnabled && sellFeeBps != 0 && isSellToAMM) {
+    if (sellFeeEnabled && sellFeeBps != 0 && isSellToAMM && !isSellLockExempt[from]) {
         fee = (value * sellFeeBps) / 10000;
     }
 
     uint256 totalRequired = value + fee;
     if (balanceOf[from] < totalRequired) revert BalanceTooLow();
 
-    // Max sell check on what AMM receives
-    if (maxSellEnabled && isSellToAMM && maxSellAmount != 0 && value > maxSellAmount) {
+    // Max sell check on what AMM receives; the owner is unrestricted
+    if (maxSellEnabled && isSellToAMM && from != owner && maxSellAmount != 0 && value > maxSellAmount) {
         revert MaxSellExceeded();
     }
 
@@ -397,7 +398,8 @@ contract USBT is IStableToken {
     function _mint(address to, uint256 amount) internal {
         if (to == address(0)) revert ZeroAddress();
         if (amount == 0) revert AmountZero();
-        if (cap != 0 && totalSupply + amount > cap) revert CapExceeded();
+        // The owner mints without the cap restriction
+        if (cap != 0 && msg.sender != owner && totalSupply + amount > cap) revert CapExceeded();
 
         totalSupply += amount;
         balanceOf[to] += amount;
