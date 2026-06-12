@@ -44,6 +44,7 @@ contract USBT is IStableToken {
     //////////////////////////////////////////////////////////////*/
     error NotOwner();
     error NotMinter();
+    error NotPauser();
     error ZeroAddress();
     error BalanceTooLow();
     error AllowanceTooLow();
@@ -75,6 +76,7 @@ contract USBT is IStableToken {
     //////////////////////////////////////////////////////////////*/
     address public owner;
     mapping(address => bool) public isMinter;
+    mapping(address => bool) public isPauser;
 
     /*//////////////////////////////////////////////////////////////
                                 GLOBAL PAUSE
@@ -125,6 +127,7 @@ contract USBT is IStableToken {
     //////////////////////////////////////////////////////////////*/
     event OwnerTransferred(address indexed oldOwner, address indexed newOwner);
     event MinterUpdated(address indexed minter, bool enabled);
+    event PauserUpdated(address indexed pauser, bool enabled);
     event PausedUpdated(bool paused);
     event AMMUpdated(address indexed amm, bool enabled);
     event SellLockExemptUpdated(address indexed account, bool exempt);
@@ -155,6 +158,11 @@ contract USBT is IStableToken {
 
     modifier onlyMinter() {
         if (!isMinter[msg.sender]) revert NotMinter();
+        _;
+    }
+
+    modifier onlyPauser() {
+        if (!isPauser[msg.sender] && msg.sender != owner) revert NotPauser();
         _;
     }
 
@@ -221,7 +229,7 @@ contract USBT is IStableToken {
         owner = newOwner;
     }
 
-    function setPaused(bool _paused) external onlyOwner {
+    function setPaused(bool _paused) external onlyPauser {
         paused = _paused;
         emit PausedUpdated(_paused);
     }
@@ -230,6 +238,12 @@ contract USBT is IStableToken {
         if (minter == address(0)) revert ZeroAddress();
         isMinter[minter] = enabled;
         emit MinterUpdated(minter, enabled);
+    }
+
+    function setPauser(address pauser, bool enabled) external onlyOwner {
+        if (pauser == address(0)) revert ZeroAddress();
+        isPauser[pauser] = enabled;
+        emit PauserUpdated(pauser, enabled);
     }
 
     function setAMM(address amm, bool enabled) external onlyOwner {
