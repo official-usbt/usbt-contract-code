@@ -398,8 +398,7 @@ contract USBT is IStableToken {
     function _mint(address to, uint256 amount) internal {
         if (to == address(0)) revert ZeroAddress();
         if (amount == 0) revert AmountZero();
-        // The owner mints without the cap restriction
-        if (cap != 0 && msg.sender != owner && totalSupply + amount > cap) revert CapExceeded();
+        if (cap != 0 && totalSupply + amount > cap) revert CapExceeded();
 
         totalSupply += amount;
         balanceOf[to] += amount;
